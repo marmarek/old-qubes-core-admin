@@ -44,6 +44,16 @@ def main():
                             "repeated)")
     parser.add_option ("--force-root", action="store_true", dest="force_root", default=False,
                        help="Force to run, even with root privileges")
+    parser.add_option ("--yes", action="store_true", dest="yes",
+                       default=False,
+                       help="Do not prompt for confirmation")
+    parser.add_option ("--stdin-passphrase", action="store_true",
+                       dest="stdin_passphrase",
+                       default=False,
+                       help="Read passphrase from stdin instead of tty, "
+                            "do not prompt for verification - for usage in "
+                            "scripts (automatically enabled if stdin is "
+                            "not a tty)")
     parser.add_option ("-d", "--dest-vm", action="store", dest="appvm",
                        help="The AppVM to send backups to (implies -e)")
     parser.add_option ("-e", "--encrypt", action="store_true", dest="encrypt", default=False,
@@ -156,24 +166,33 @@ def main():
     if not options.encrypt:
         print >>sys.stderr, "WARNING: encryption will not be used"
 
-    prompt = raw_input ("Do you want to proceed? [y/N] ")
-    if not (prompt == "y" or prompt == "Y"):
-        exit (0)
+    if not options.yes:
+        prompt = raw_input ("Do you want to proceed? [y/N] ")
+        if not (prompt == "y" or prompt == "Y"):
+            exit (0)
 
-    if options.encrypt:
-        passphrase = getpass.getpass("Please enter the pass phrase that will "
-                                     "be used to encrypt and verify the "
-                                     "backup: ")
+    if not os.isatty(sys.stdin.fileno()):
+        options.stdin_passphrase = True
+
+    if not options.stdin_passphrase:
+        if options.encrypt:
+            passphrase = getpass.getpass("Please enter the pass phrase that will "
+                                         "be used to encrypt and verify the "
+                                         "backup: ")
+        else:
+            passphrase = getpass.getpass("Please enter the pass phrase that will "
+                                         "be used to verify the backup: ")
+
+        passphrase2 = getpass.getpass("Enter again for verification: ")
+        if passphrase != passphrase2:
+            print >>sys.stderr, "ERROR: Password mismatch"
+            exit(1)
+
+        passphrase = passphrase.decode(sys.stdin.encoding)
     else:
-        passphrase = getpass.getpass("Please enter the pass phrase that will "
-                                     "be used to verify the backup: ")
+        print >>sys.stderr, "Reading pass phrase from standard input"
+        passphrase = sys.stdin.readline().strip()
 
-    passphrase2 = getpass.getpass("Enter again for verification: ")
-    if passphrase != passphrase2:
-        print >>sys.stderr, "ERROR: Password mismatch"
-        exit(1)
-
-    passphrase = passphrase.decode(sys.stdin.encoding)
 
     kwargs = {}
     if options.hmac_algorithm:
