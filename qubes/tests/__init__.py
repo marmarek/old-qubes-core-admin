@@ -712,6 +712,8 @@ class BackupTestsMixin(SystemTestsMixin):
             name=vmname,
             hvm=True, label='red')
         testvm2.create_on_disk()
+        # XXX HACK
+        os.mkdir(os.path.join(testvm2.dir_path, 'apps'))
         self.fill_image(testvm2.root_img, 1024*1024*1024, True)
         vms.append(testvm2)
 
