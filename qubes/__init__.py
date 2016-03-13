@@ -639,7 +639,8 @@ class property(object): # pylint: disable=redefined-builtin,invalid-name
         self._enforce_write_once(instance)
 
         if value is self.__class__.DEFAULT:
-            self.__delete__(instance)
+            if hasattr(instance, self._attr_name):
+                self.__delete__(instance)
             return
 
         try:
