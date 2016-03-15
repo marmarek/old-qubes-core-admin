@@ -1066,6 +1066,10 @@ class VMProperty(property):
     def __set__(self, instance, value):
         if value == self._none_value:
             value = None
+        if value is self.__class__.DEFAULT:
+            if hasattr(instance, self._attr_name):
+                self.__delete__(instance)
+            return
         if value is None:
             if self.allow_none:
                 super(VMProperty, self).__set__(instance, value)
