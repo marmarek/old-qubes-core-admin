@@ -149,7 +149,7 @@ class BackupHeader(object):
         if self.version == 1:
             # header not really present
             pass
-        elif self.version in [2, 3]:
+        elif self.version in [2, 3, 4]:
             expected_attrs = ['version', 'encrypted', 'compressed',
                 'hmac_algorithm']
             if self.encrypted:
@@ -1630,7 +1630,7 @@ class BackupRestore(object):
         format_version = self.header_data.version
         if format_version == 2:
             extract_proc = ExtractWorker2(**extractor_params)
-        elif format_version == 3:
+        elif format_version in [3, 4]:
             extractor_params['compression_filter'] = \
                 self.header_data.compression_filter
             extract_proc = ExtractWorker3(**extractor_params)
@@ -1920,7 +1920,7 @@ class BackupRestore(object):
     def _is_vm_included_in_backup(self, vm):
         if self.header_data.version == 1:
             return self._is_vm_included_in_backup_v1(vm)
-        elif self.header_data.version in [2, 3]:
+        elif self.header_data.version in [2, 3, 4]:
             return self._is_vm_included_in_backup_v2(vm)
         else:
             raise qubes.exc.QubesException(
