@@ -39,13 +39,13 @@ import errno
 import datetime
 from multiprocessing import Queue, Process
 import qubes
+import qubes.core2migration
 
 HEADER_FILENAME = 'backup-header'
 DEFAULT_CRYPTO_ALGORITHM = 'aes-256-cbc'
 DEFAULT_HMAC_ALGORITHM = 'SHA512'
 DEFAULT_COMPRESSION_FILTER = 'gzip'
-# TODO: increase version after finishing implementation
-CURRENT_BACKUP_FORMAT_VERSION = '3'
+CURRENT_BACKUP_FORMAT_VERSION = '4'
 # Maximum size of error message get from process stderr (including VM process)
 MAX_STDERR_BYTES = 1024
 # header + qubes.xml max size
@@ -1646,7 +1646,9 @@ class BackupRestore(object):
         and :py:meth:`retrieve_backup_header` was called.
         """
         if self.header_data.version == 1:
-            raise NotImplementedError("TODO: conversion core[12] qubes.xml")
+            backup_app = qubes.core2migration.Core2Qubes(
+                os.path.join(self.backup_location, 'qubes.xml'))
+            return backup_app
         else:
             self._verify_hmac("qubes.xml.000", "qubes.xml.000.hmac")
             queue = Queue()
@@ -1660,13 +1662,14 @@ class BackupRestore(object):
                 "unable to extract the qubes backup. "
                 "Check extracting process errors.")
 
-        if self.header_data.version in [2]:  # TODO add 3
-            raise NotImplementedError("TODO: conversion core[12] qubes.xml")
+        if self.header_data.version in [2, 3]:
+            backup_app = qubes.core2migration.Core2Qubes(
+                os.path.join(self.tmpdir, 'qubes.xml'))
         else:
             backup_app = qubes.Qubes(os.path.join(self.tmpdir, 'qubes.xml'))
             # Not needed anymore - all the data stored in backup_app
-            os.unlink(os.path.join(self.tmpdir, 'qubes.xml'))
-            return backup_app
+        os.unlink(os.path.join(self.tmpdir, 'qubes.xml'))
+        return backup_app
 
     def _restore_vm_dirs(self, vms_dirs, vms_size):
         # Currently each VM consists of at most 7 archives (count
