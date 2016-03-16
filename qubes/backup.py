@@ -1635,7 +1635,7 @@ class BackupRestore(object):
                 self.header_data.compression_filter
             extract_proc = ExtractWorker3(**extractor_params)
         else:
-            raise NotImplemented(
+            raise NotImplementedError(
                 "Backup format version %d not supported" % format_version)
         extract_proc.start()
         return extract_proc
