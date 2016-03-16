@@ -29,6 +29,7 @@ import subprocess
 
 import qubes.config
 import qubes.ext
+import qubes.tools.qubes_monitor_layout_notify
 
 class GUI(qubes.ext.Extension):
     @qubes.ext.handler('domain-start', 'domain-cmd-pre-run')
@@ -38,6 +39,11 @@ class GUI(qubes.ext.Extension):
 
         GUI daemon securely displays windows from domain.
         ''' # pylint: disable=no-self-use,unused-argument
+
+        # FIXME move it to this extension? have an event to plug it into
+        # vm.is_fully_usable?
+        if vm.is_guid_running():
+            return
 
         if not start_guid or preparing_dvm \
                 or not os.path.exists('/var/run/shm.id'):
@@ -73,7 +79,7 @@ class GUI(qubes.ext.Extension):
             raise qubes.exc.QubesVMError(vm,
                 'Cannot start qubes-guid for domain {!r}'.format(vm.name))
 
-        vm.notify_monitor_layout()
+        self.notify_monitor_layout(vm)
         vm.wait_for_session()
 
 
@@ -90,3 +96,8 @@ class GUI(qubes.ext.Extension):
         pipe.stdin.write(''.join(monitor_layout))
         pipe.stdin.close()
         pipe.wait()
+
+    def notify_monitor_layout(self, vm):
+        monitor_layout = qubes.tools.qubes_monitor_layout_notify\
+            .get_monitor_layout()
+        self.on_monitor_layout_change(vm, None, monitor_layout)
