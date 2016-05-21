@@ -150,8 +150,6 @@ class Storage(object):
 
         old_umask = os.umask(002)
 
-        self.log.info('Creating directory: {0}'.format(self.vm.dir_path))
-        os.makedirs(self.vm.dir_path)
         for name, volume in self.vm.volumes.items():
             source_volume = None
             if source_template and hasattr(source_template, 'volumes'):
@@ -194,7 +192,6 @@ class Storage(object):
         for name, volume in self.vm.volumes.items():
             self.log.info('Removing volume %s: %s' % (name, volume.vid))
             self.get_pool(volume).remove(volume)
-        shutil.rmtree(self.vm.dir_path)
 
     def start(self):
         ''' Execute the start method on each pool '''
