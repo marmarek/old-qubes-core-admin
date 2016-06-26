@@ -42,23 +42,16 @@ class DeviceCollection(object):
         self._class = class_
         self._set = set()
 
+        self.devclass = qubes.utils.get_entry_point_one(
+            'qubes.devices', self._class)
 
     def attach(self, device):
         '''Attach (add) device to domain.
 
-        :param str device: device identifier (format is class-dependent)
+        :param DeviceInfo device: device object
         '''
 
-        try:
-            devclass = qubes.utils.get_entry_point_one(
-                'qubes.devices', self._class)
-        except KeyError:
-            devclass = str
-
-        if not isinstance(device, devclass):
-            device = devclass(device)
-
-        if device in self:
+        if device in self.attached():
             raise KeyError(
                 'device {!r} of class {} already attached to {!r}'.format(
                     device, self._class, self._vm))
@@ -70,10 +63,10 @@ class DeviceCollection(object):
     def detach(self, device):
         '''Detach (remove) device from domain.
 
-        :param str device: device identifier (format is class-dependent)
+        :param DeviceInfo device: device object
         '''
 
-        if device not in self:
+        if device not in self.attached():
             raise KeyError(
                 'device {!r} of class {} not attached to {!r}'.format(
                     device, self._class, self._vm))
@@ -81,17 +74,41 @@ class DeviceCollection(object):
         self._set.remove(device)
         self._vm.fire_event('device-detach:' + self._class, device)
 
+    def attached(self, persistent=None, attached=None):
+        '''List devices which are (or may be) attached to this vm
 
-    def __iter__(self):
-        return iter(self._set)
+        Devices may be attached persistently (so they are included in
+        :file:`qubes.xml`) or not. Device can also be in :file:`qubes.xml`,
+        but be temporarily detached.
 
+        :param bool persistent: only include devices which are (or are not) \
+        attached persistently
+        :param bool attached: onlu include devices which are (or are not)
+        really attached
+        '''
+        seen = self._set.copy()
 
-    def __contains__(self, item):
-        return item in self._set
+        attached = self._vm.fire_event('device-list-attached:' + self._class,
+            persistent=persistent, attached=attached)
+        for device in attached:
+            device_persistent = device in self._set
+            if persistent is not None and device_persistent != persistent:
+                continue
+            assert device.frontend_domain == self._vm
 
+            yield device
 
-    def __len__(self):
-        return len(self._set)
+            try:
+                seen.remove(device)
+            except KeyError:
+                pass
+
+        if persistent is False:
+            return
+
+        for device in seen:
+            assert device.frontend_domain is None
+            yield device
 
 
 class DeviceManager(dict):
@@ -109,24 +126,35 @@ class DeviceManager(dict):
         return self[key]
 
 
-class RegexDevice(str):
-    regex = None
-    def __init__(self, *args, **kwargs):
-        super(RegexDevice, self).__init__(*args, **kwargs)
+class DeviceInfo(object):
+    def __init__(self, backend_domain, ident, description=None,
+            frontend_domain=None, **kwargs):
+        self.backend_domain = backend_domain
+        self.ident = ident
+        self.description = description
+        self.frontend_domain = frontend_domain
+        self.data = kwargs
 
-        if self.regex is None:
-            raise NotImplementedError(
-                'You should overload .regex attribute in subclass')
+        if hasattr(self, 'regex'):
+            dev_match = self.regex.match(ident)
+            if not dev_match:
+                raise ValueError('Invalid device identifier: {!r}'.format(
+                    ident))
 
-        dev_match = self.regex.match(self)
-        if not dev_match:
-            raise ValueError('Invalid device identifier: {!r}'.format(self))
+            for group in self.regex.groupindex:
+                setattr(self, group, dev_match.group(group))
 
-        for group in self.regex.groupindex:
-            setattr(self, group, dev_match.group(group))
+    def __hash__(self):
+        return hash(self.ident)
+
+    def __eq__(self, other):
+        return (
+            self.backend_domain == other.backend_domain and
+            self.ident == other.ident
+        )
 
 
-class PCIDevice(RegexDevice):
+class PCIDevice(DeviceInfo):
     regex = re.compile(
         r'^(?P<bus>[0-9a-f]+):(?P<device>[0-9a-f]+)\.(?P<function>[0-9a-f]+)$')
 
