@@ -1617,7 +1617,8 @@ class BackupRestore(object):
         """
         if self.header_data.version == 1:
             backup_app = qubes.core2migration.Core2Qubes(
-                os.path.join(self.backup_location, 'qubes.xml'))
+                os.path.join(self.backup_location, 'qubes.xml'),
+                offline_mode=True)
             return backup_app
         else:
             self._verify_hmac("qubes.xml.000", "qubes.xml.000.hmac")
@@ -1634,9 +1635,10 @@ class BackupRestore(object):
 
         if self.header_data.version in [2, 3]:
             backup_app = qubes.core2migration.Core2Qubes(
-                os.path.join(self.tmpdir, 'qubes.xml'))
+                os.path.join(self.tmpdir, 'qubes.xml'), offline_mode=True)
         else:
-            backup_app = qubes.Qubes(os.path.join(self.tmpdir, 'qubes.xml'))
+            backup_app = qubes.Qubes(os.path.join(self.tmpdir, 'qubes.xml'),
+                offline_mode=True)
         # Not needed anymore - all the data stored in backup_app
         os.unlink(os.path.join(self.tmpdir, 'qubes.xml'))
         return backup_app
@@ -1842,8 +1844,11 @@ class BackupRestore(object):
                 installed_kernels = os.listdir(os.path.join(
                     qubes.config.qubes_base_dir,
                     qubes.config.system_path['qubes_kernels_base_dir']))
+                # if uses default kernel - do not validate it
+                # allow kernel=None only for HVM,
+                # otherwise require valid kernel
                 if not vm_info.vm.property_is_default('kernel') \
-                        and vm_info.vm.kernel \
+                        and (not vm_info.vm.kernel and not vm_info.vm.hvm) \
                         and vm_info.vm.kernel not in installed_kernels:
                     if self.options.use_default_kernel:
                         vm_info.vm.kernel = qubes.property.DEFAULT
