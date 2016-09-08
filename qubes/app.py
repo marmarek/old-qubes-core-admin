@@ -800,7 +800,11 @@ class Qubes(qubes.PropertyHolder):
             fh_new, encoding='utf-8', pretty_print=True)
         fh_new.flush()
         os.chmod(fh_new.name, 0660)
-        os.chown(fh_new.name, -1, grp.getgrnam('qubes').gr_gid)
+        try:
+            os.chown(fh_new.name, -1, grp.getgrnam('qubes').gr_gid)
+        except KeyError:
+            # simply do not chown when there is no 'qubes' group
+            pass
         os.rename(fh_new.name, self._store)
 
         # intentionally do not call explicit unlock to not unlock the file
