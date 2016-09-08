@@ -18,7 +18,7 @@ if [ "$1" = "setup-lvm" -a -n "$2" ]; then
     # auto cleanup
     rm -f $loop_file
     vgcreate "$VG_NAME" $loop_dev
-    lvcreate -n "$POOL_NAME" --type thin-pool -L 960M "$VG_NAME"
+    lvcreate --thinpool "$POOL_NAME" --type thin-pool -L 960M "$VG_NAME"
     exit 0
 elif [ "$1" = "cleanup-lvm" -a -n "$2" ]; then
     VG_NAME=`echo $2 | cut -f 1 -d /`
